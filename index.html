@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignTalk - Sign Language Translator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-screen="landing">
+
+  <header class="topbar">
+    <a class="logo" href="#" data-go="landing"><span class="logo-icon">🤟</span> SignTalk</a>
+
+    <nav class="nav-landing">
+      <a href="#" class="active" data-go="landing">Home</a>
+      <a href="#">About</a>
+      <a href="#">How It Works</a>
+      <button class="icon-btn" aria-label="Settings">⚙️</button>
+    </nav>
+
+    <nav class="nav-app">
+      <a href="#" data-go="landing">Home</a>
+      <a href="#">History</a>
+      <a href="#">Settings</a>
+      <span class="avatar" aria-hidden="true">👤</span>
+    </nav>
+  </header>
+
+  <!-- PAGE 1: LANDING -->
+  <section id="landing" class="screen active">
+    <div class="panel">
+      <div class="hero">
+        <div class="hero-text">
+          <span class="pill">AI Powered</span>
+          <h1>Sign Language<br>to <span class="accent">Text &amp; Speech</span><br>Translator</h1>
+          <p>Break communication barriers.<br>Because every sign matters.</p>
+          <button id="startBtn" class="btn-primary" data-go="camera">📷 Start Translation →</button>
+        </div>
+        <div class="hero-art">
+          <img src="hero.png" alt="Illustration of a person signing"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+          <div class="hero-fallback">🤟</div>
+        </div>
+      </div>
+
+      <div class="features">
+        <div class="feature">
+          <span class="ico ico-blue">📷</span>
+          <div><h3>Real-time Detection</h3><p>Instantly recognizes sign language.</p></div>
+        </div>
+        <div class="feature">
+          <span class="ico ico-blue">📝</span>
+          <div><h3>Text Output</h3><p>Get accurate text conversion.</p></div>
+        </div>
+        <div class="feature">
+          <span class="ico ico-green">🔊</span>
+          <div><h3>Speech Output</h3><p>Listen to the converted speech.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+    <!-- PAGE 2: CAMERA -->
+  <section id="camera" class="screen">
+    <div class="camera-layout">
+
+      <div class="camera-main">
+        <div class="camera-frame">
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="overlay"></canvas>
+          <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Camera Off</span></span>
+          <div class="cam-message" id="camMessage" hidden></div>
+        </div>
+        <div class="camera-actions">
+          <button id="cameraToggleBtn" class="btn-soft">⏹ Stop Camera</button>
+                    <button id="uploadBtn" class="btn-soft">📁 Upload Video</button>
+          <input type="file" id="videoFile" accept="video/*" hidden>
+        </div>
+      </div>
+
+      <aside class="camera-side">
+        <div class="side-card">
+          <div class="side-icon">🤟</div>
+          <h2>Live Translation</h2>
+          <p>Show your sign in front of the camera. We'll detect and translate it for you.</p>
+          <button id="captureBtn" class="btn-primary btn-block" data-go="analysis">Capture &amp; Translate →</button>
+        </div>
+        <div class="side-card">
+          <h3>💡 Tips:</h3>
+          <ul>
+            <li>Keep your hand inside the frame</li>
+            <li>Ensure good lighting</li>
+            <li>Use clear and simple gestures</li>
+            <li>Keep the background simple</li>
+          </ul>
+        </div>
+      </aside>
+
+    </div>
+  </section>
+
+   <!-- PAGE 3: ANALYSIS -->
+  <section id="analysis" class="screen">
+    <div class="analysis-wrap">
+      <div class="ring-box">
+        <svg class="ring" viewBox="0 0 120 120">
+          <circle class="ring-bg" cx="60" cy="60" r="54"/>
+          <circle class="ring-spin" cx="60" cy="60" r="54"/>
+        </svg>
+        <div class="ring-icon">🧠</div>
+      </div>
+
+      <h2>Analyzing...</h2>
+      <p>Please wait while we process your sign.</p>
+      <div class="progress"><div id="progressBar"></div></div>
+
+      <div class="steps">
+        <div class="step" id="step1"><span class="step-ico">📷</span><span>Captured</span></div>
+        <span class="step-arrow">›</span>
+        <div class="step" id="step2"><span class="step-ico">🧠</span><span>Analyzing</span></div>
+        <span class="step-arrow">›</span>
+        <div class="step" id="step3"><span class="step-ico">📄</span><span>Generating Result</span></div>
+      </div>
+    </div>
+  </section>
+
+    <!-- PAGE 4: RESULT -->
+  <section id="result" class="screen">
+    <div class="result-layout">
+
+      <div class="result-main">
+        <div class="result-top">
+          <span class="complete">✅ Translation Complete!</span>
+          <span class="time" id="resultTime">Today</span>
+        </div>
+
+        <div class="result-word">
+          <div class="word-icon">🤚</div>
+          <span class="chev">›</span>
+          <div class="word-text" id="resultText">Hello</div>
+        </div>
+
+        <h3 class="speech-title">🔊 Speech Output</h3>
+        <div class="player">
+          <button id="playBtn" class="play-btn" aria-label="Play speech">▶</button>
+          <div class="wave" id="wave"></div>
+          <span class="duration" id="duration">0:00 / 0:01</span>
+          <span class="vol">🔊</span>
+        </div>
+        <div class="voice-row">
+          <label for="voiceSelect">🎙 Voice</label>
+          <select id="voiceSelect"></select>
+          <label for="rateSelect">Speed</label>
+          <select id="rateSelect">
+            <option value="0.75">Slow</option>
+            <option value="0.95" selected>Normal</option>
+            <option value="1.15">Fast</option>
+          </select>
+        </div>
+        <div class="result-actions">
+          <button id="playAgainBtn" class="btn-primary">🔁 Play Again</button>
+          <button class="btn-soft" data-go="camera">🔄 New Translation</button>
+        </div>
+      </div>
+
+      <aside class="result-side">
+        <div class="side-card">
+          <h3>🤟 Detected Sign</h3>
+          <div class="detected-pill" id="detectedPill">Hello</div>
+        </div>
+        <div class="side-card">
+          <h3>🕘 Recent Translations</h3>
+          <ul class="history" id="historyList"></ul>
+        </div>
+      </aside>
+
+    </div>
+  </section>
+    <script src="recognizer.js"></script>
+  <script src="hands.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignTalk - Record signs</title>
+  <style>
+    :root { --primary:#4f46e5; --primary-dark:#4338ca; --ink:#1e1b4b; --muted:#6b7280; --bg:#e8ebfb; --panel:#f8f9ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:20px 24px 40px; font-family:"Segoe UI",Arial,sans-serif; color:var(--ink); background:var(--bg); }
+    h1 { margin:0 0 6px; font-size:1.6rem; }
+    .tip { margin:0 0 18px; max-width:760px; color:var(--muted); line-height:1.55; }
+    .layout { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:20px; max-width:1200px; }
+    .card { background:var(--panel); border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(79,70,229,.08); }
+    .frame { position:relative; width:100%; aspect-ratio:16/9; background:#111827; border-radius:12px; overflow:hidden; }
+    .frame video, .frame canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+    #banner { position:absolute; inset:0; display:grid; place-items:center; padding:12px; text-align:center;
+              font-size:clamp(1.6rem,5vw,3rem); font-weight:700; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.8); pointer-events:none; }
+    #handInfo { position:absolute; top:10px; left:10px; z-index:2; background:rgba(0,0,0,.55); color:#fff;
+                padding:4px 12px; border-radius:999px; font-size:.85rem; }
+    .selected-line { margin:14px 0 4px; font-size:1.1rem; }
+    .controls { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    button { border:none; border-radius:10px; padding:10px 16px; font-size:.95rem; font-weight:600; cursor:pointer;
+             background:#e6e8fb; color:var(--primary); font-family:inherit; }
+    button:hover:not(:disabled) { background:#d9dcf7; }
+    button.primary { background:var(--primary); color:#fff; }
+    button.primary:hover:not(:disabled) { background:var(--primary-dark); }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    button:focus-visible, label.file:focus-within { outline:3px solid var(--primary); outline-offset:2px; }
+    label.file { display:inline-block; border-radius:10px; padding:10px 16px; font-size:.95rem; font-weight:600; cursor:pointer;
+                 background:#e6e8fb; color:var(--primary); }
+    label.file input { position:absolute; opacity:0; width:1px; height:1px; }
+    #msg { min-height:48px; margin:12px 0 0; line-height:1.5; }
+    h2 { margin:0 0 8px; font-size:1.05rem; }
+    .grid { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+    .grid button { padding:8px 11px; font-size:.85rem; background:#fff; border:2px solid #e6e8fb; color:var(--ink); font-weight:500; }
+    .grid button.sel { border-color:var(--primary); }
+    .grid button.done { background:#dcf5e6; color:#15803d; }
+    #total { color:var(--muted); font-size:.9rem; margin:0; }
+    @media (max-width:900px) { .layout { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <h1>Record signs</h1>
+  <p class="tip">
+    Pick a sign on the right, press Record, and do the sign in front of the camera.
+    Stand at the distance you will use at the expo, and keep both hands inside the frame.
+    Change your distance and speed a little each time. Download the file often.
+  </p>
+
+  <div class="layout">
+    <div class="card">
+      <div class="frame">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <span id="handInfo">Starting camera…</span>
+        <div id="banner"></div>
+      </div>
+
+      <p class="selected-line">Selected sign: <strong id="current"></strong></p>
+      <div class="controls">
+        <button id="recordBtn" class="primary">Record one</button>
+        <button id="autoBtn" class="primary">Auto record</button>
+        <button id="stopBtn" disabled>Stop</button>
+        <button id="undoBtn">Delete last</button>
+        <button id="clearBtn">Clear this sign</button>
+      </div>
+      <div class="controls">
+        <button id="downloadBtn">Download gestures.json</button>
+        <label class="file">Load gestures.json<input id="loadInput" type="file" accept=".json,application/json"></label>
+      </div>
+      <p id="msg"></p>
+    </div>
+
+    <div class="card">
+      <h2>Words</h2>
+      <div class="grid" id="wordList"></div>
+      <h2>Letters</h2>
+      <div class="grid" id="letterList"></div>
+      <p id="total"></p>
+    </div>
+  </div>
+
+<script>
+// ---------- Settings ----------
+const WORDS = ["Hi", "Hello", "Welcome", "Thank you", "Bye", "How are you", "I am fine", "My name is","sorry"];
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+const TARGET = { word: 20, letter: 10 };          // samples wanted per sign
+const DURATION = { word: 2000, letter: 1000 };    // recording length in ms
+const FRAMES = 12;                                // frames kept per sample
+const STORE_KEY = "signtalkGestures";
+
+// ---------- Page elements ----------
+const video = document.getElementById("video");
+const canvas = document.getElementById("overlay");
+const ctx = canvas.getContext("2d");
+const bannerEl = document.getElementById("banner");
+const handInfo = document.getElementById("handInfo");
+const msgEl = document.getElementById("msg");
+const totalEl = document.getElementById("total");
+const currentEl = document.getElementById("current");
+const recordBtn = document.getElementById("recordBtn");
+const autoBtn = document.getElementById("autoBtn");
+const stopBtn = document.getElementById("stopBtn");
+const undoBtn = document.getElementById("undoBtn");
+const clearBtn = document.getElementById("clearBtn");
+const downloadBtn = document.getElementById("downloadBtn");
+const loadInput = document.getElementById("loadInput");
+
+let samples = loadSamples();
+let selected = WORDS[0];
+let busy = false;
+let stopFlag = false;
+let recording = null;
+
+function kindOf(label) { return WORDS.includes(label) ? "word" : "letter"; }
+function count(label) { return samples.filter(s => s.label === label).length; }
+function msg(text) { msgEl.textContent = text; }
+function banner(text) { bannerEl.textContent = text; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ---------- Saving in the browser ----------
+function loadSamples() {
+  try {
+    const d = JSON.parse(localStorage.getItem(STORE_KEY));
+    return (d && Array.isArray(d.samples)) ? d.samples : [];
+  } catch (e) { return []; }
+}
+function saveSamples() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ version: 1, frames: FRAMES, samples }));
+  } catch (e) {
+    msg("The browser could not store more data. Press Download gestures.json now.");
+  }
+}
+
+// ---------- Sign lists ----------
+function fill(id, labels) {
+  const box = document.getElementById(id);
+  box.innerHTML = "";
+  labels.forEach(label => {
+    const b = document.createElement("button");
+    b.textContent = label + "  " + count(label) + "/" + TARGET[kindOf(label)];
+    if (label === selected) b.classList.add("sel");
+    if (count(label) >= TARGET[kindOf(label)]) b.classList.add("done");
+    b.addEventListener("click", () => {
+      if (busy) return;
+      selected = label;
+      renderLists();
+      showHowTo();
+    });
+    box.appendChild(b);
+  });
+}
+
+function renderLists() {
+  fill("wordList", WORDS);
+  fill("letterList", LETTERS);
+  const all = [...WORDS, ...LETTERS];
+  const done = all.filter(l => count(l) >= TARGET[kindOf(l)]).length;
+  totalEl.textContent = "Signs finished: " + done + " of " + all.length + ". Samples saved: " + samples.length + ".";
+  currentEl.textContent = selected + " (" + count(selected) + " of " + TARGET[kindOf(selected)] + ")";
+}
+
+function showHowTo() {
+  msg(kindOf(selected) === "word"
+    ? "Word: after GO, do the whole sign within 2 seconds."
+    : "Letter: after GO, hold the letter still for 1 second.");
+}
+
+function setButtons() {
+  recordBtn.disabled = busy;
+  autoBtn.disabled = busy;
+  undoBtn.disabled = busy;
+  clearBtn.disabled = busy;
+  stopBtn.disabled = !busy;
+}
+
+// ---------- Camera and hand tracking (up to 2 hands) ----------
+const CDN = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+const MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+const CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+let handLandmarker = null;
+let lastVideoTime = -1;
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+    video.srcObject = stream;
+  } catch (err) {
+    console.error(err);
+    handInfo.textContent = "Camera problem";
+    msg("Could not start the camera. Allow camera permission, close other apps that use it, and refresh. Use Chrome.");
+    return;
+  }
+  handInfo.textContent = "Loading hand tracking…";
+  try {
+    const { FilesetResolver, HandLandmarker } = await import(CDN + "/vision_bundle.mjs");
+    const fileset = await FilesetResolver.forVisionTasks(CDN + "/wasm");
+    handLandmarker = await HandLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: MODEL },
+      runningMode: "VIDEO",
+      numHands: 2
+    });
+  } catch (err) {
+    console.error(err);
+    handInfo.textContent = "Hand tracking failed";
+    msg("Hand tracking could not load. Check your internet connection and refresh.");
+    return;
+  }
+  detectLoop();
+}
+
+// Turn detected hands into simple number lists (x, y for 21 points each), left-most hand first
+function packHands(landmarks) {
+  return landmarks
+    .map(hand => hand.flatMap(p => [Math.round(p.x * 1000) / 1000, Math.round(p.y * 1000) / 1000]))
+    .sort((a, b) => a[0] - b[0]);
+}
+
+function detectLoop() {
+  if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    const result = handLandmarker.detectForVideo(video, performance.now());
+    const landmarks = result.landmarks || [];
+    drawHands(landmarks);
+    if (recording) recording.frames.push({ t: performance.now(), hands: packHands(landmarks) });
+  }
+  requestAnimationFrame(detectLoop);
+}
+
+function drawHands(hands) {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hands.forEach(hand => {
+    ctx.strokeStyle = "#a78bfa";
+    ctx.lineWidth = 3;
+    CONNECTIONS.forEach(([a, b]) => {
+      ctx.beginPath();
+      ctx.moveTo(hand[a].x * canvas.width, hand[a].y * canvas.height);
+      ctx.lineTo(hand[b].x * canvas.width, hand[b].y * canvas.height);
+      ctx.stroke();
+    });
+    ctx.fillStyle = "#22c55e";
+    hand.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x * canvas.width, p.y * canvas.height, 4, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  });
+  handInfo.textContent = hands.length === 0 ? "No hand seen" : hands.length === 1 ? "1 hand seen" : "2 hands seen";
+}
+
+// ---------- Recording ----------
+async function recordOne(label, countdown) {
+  const kind = kindOf(label);
+  for (let n = countdown; n > 0; n--) {
+    if (stopFlag) { banner(""); return false; }
+    banner(String(n));
+    await sleep(1000);
+  }
+  if (stopFlag) { banner(""); return false; }
+
+  banner("GO: " + label);
+  const rec = { start: performance.now(), frames: [] };
+  recording = rec;
+  await sleep(DURATION[kind]);
+  recording = null;
+  banner("");
+  if (stopFlag) return false;
+
+  const fr = rec.frames;
+    if (fr.length < 4) {
+    msg("The camera is too slow. Close other apps and try again.");
+    return false;
+  }
+  const seen = fr.filter(f => f.hands.length > 0).length;
+  if (seen / fr.length < 0.5) {
+    msg("Your hands were not seen clearly. Keep both hands inside the frame and try again.");
+    return false;
+  }
+
+  // Keep FRAMES evenly spaced frames from the recording
+  const out = [];
+  for (let i = 0; i < FRAMES; i++) {
+    const target = rec.start + ((i + 0.5) / FRAMES) * DURATION[kind];
+    let best = fr[0];
+    for (const f of fr) {
+      if (Math.abs(f.t - target) < Math.abs(best.t - target)) best = f;
+    }
+    out.push(best.hands);
+  }
+  samples.push({ label, kind, frames: out });
+  saveSamples();
+  renderLists();
+  msg("Saved sample " + count(label) + " for " + label + ".");
+  return true;
+}
+
+async function recordManual() {
+  if (busy) return;
+  busy = true; stopFlag = false; setButtons();
+  await recordOne(selected, 3);
+  busy = false; setButtons();
+}
+
+async function recordAuto() {
+  if (busy) return;
+  busy = true; stopFlag = false; setButtons();
+  const label = selected;
+  const goal = TARGET[kindOf(label)];
+  while (!stopFlag && count(label) < goal) {
+    const ok = await recordOne(label, 2);
+    if (!ok && !stopFlag) await sleep(1000);
+  }
+  banner("");
+  busy = false; setButtons();
+  if (count(label) >= goal) msg(label + " is done. Pick the next sign.");
+  else msg("Stopped.");
+}
+
+recordBtn.addEventListener("click", recordManual);
+autoBtn.addEventListener("click", recordAuto);
+stopBtn.addEventListener("click", () => { stopFlag = true; });
+
+undoBtn.addEventListener("click", () => {
+  for (let i = samples.length - 1; i >= 0; i--) {
+    if (samples[i].label === selected) { samples.splice(i, 1); break; }
+  }
+  saveSamples(); renderLists();
+  msg("Deleted the last sample of " + selected + ".");
+});
+
+clearBtn.addEventListener("click", () => {
+  if (!confirm("Delete all " + count(selected) + " samples of " + selected + "?")) return;
+  samples = samples.filter(s => s.label !== selected);
+  saveSamples(); renderLists();
+  msg("Cleared " + selected + ".");
+});
+
+// ---------- Download and load ----------
+downloadBtn.addEventListener("click", () => {
+  const data = JSON.stringify({ version: 1, frames: FRAMES, samples });
+  const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "gestures.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  msg("Downloaded gestures.json. Save it in your sign-translator folder.");
+});
+
+loadInput.addEventListener("change", () => {
+  const file = loadInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const d = JSON.parse(reader.result);
+      if (!d || !Array.isArray(d.samples)) throw new Error("bad file");
+      samples = samples.concat(d.samples);
+      saveSamples(); renderLists();
+      msg("Added " + d.samples.length + " samples from the file.");
+    } catch (e) {
+      msg("That file is not a valid gestures.json.");
+    }
+    loadInput.value = "";
+  };
+  reader.readAsText(file);
+});
+
+// ---------- Start ----------
+renderLists();
+setButtons();
+showHowTo();
+startCamera();
+</script>
+</body>
+</html>
