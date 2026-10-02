@@ -8,13 +8,13 @@
     LETTER_MS: 1500,      // same as record.html
     LETTER_LIVE_MS: 500,  // letters are held still, so only the last 0.5 s is compared
     FRAMES: 12,           // same as record.html
-    WORD_SHIFT: 3,        // how much a word may be shifted in time and still match
+    WORD_SHIFT: 4,        // how much a word may be shifted in time and still match
     LETTER_SHIFT: 0,
     EVAL_MS: 150,         // how often we check the signs
-    STABLE: 2,            // words: same answer this many checks in a row before we accept it
-    STABLE_LETTER: 2,     // letters: same answer this many checks in a row
+    STABLE: 3,            // words: same answer this many checks in a row before we accept it
+    STABLE_LETTER: 3,     // letters: same answer this many checks in a row
     FIRST_LETTER_GAP_MS: 300, // after "My name is", the hands must leave the view this long before the first letter is read
-    LETTER_STILL: 0.3,    // letters are only checked while the hand is held still (smaller = stricter)
+    LETTER_STILL: 0.15,    // letters are only checked while the hand is held still (smaller = stricter)
     LETTER_LIMIT_SCALE: 3,// letters are accepted even if fairly far from your recordings (bigger = more forgiving)
     LETTER_MARGIN: 0.92,  // letters: best match must beat the second best by a small margin
     POS_WEIGHT: 3,        // how much "where the hand is" matters
