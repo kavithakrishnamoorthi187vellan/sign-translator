@@ -78,6 +78,10 @@ Or just open the live demo link above.
 - Support two-hand and motion-based signs
 - Sentence formation and multi-language speech
 
-## Author
+## Authors
 
-2nd year, B.Tech AI & Data Science. Built as a mini project.
+- Kavitha. K
+- Angel. S
+
+B.Tech Artificial Intelligence and Data Science, 2nd year.
+Developed for the project expo.
