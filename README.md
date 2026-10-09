@@ -1,6 +1,6 @@
 # Sign Translator
 
-**Live Demo:** https://kavithakrishnamoorthi187vellan.github.io/sign-translator/
+**Live Demo:** https://kavivelan187.github.io/sign-translator/
 
 ![Demo](demo.png)
 
