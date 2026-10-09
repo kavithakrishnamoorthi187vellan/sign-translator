@@ -23,7 +23,7 @@
     HANDS_GONE_MS: 700,   // hands out of view this long allows the same sign again
     NAME_END_MS: 2500,    // hands out of view this long ends the spelled name
     MAX_LETTERS: 20,
-    DEBUG: true           // shows the best guess under the box. Set to false before the expo.
+    DEBUG: false           // shows the best guess under the box. Set to false before the expo.
   };
   const WORDS = ["Hi", "Hello", "Welcome", "Thank you", "Bye", "How are you", "I am fine", "My name is","sorry"];
   const DIM = 88;         // 2 hands x (21 points x 2 numbers + 2 position numbers)
